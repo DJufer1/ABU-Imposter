@@ -1,0 +1,772 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-TF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Imposter: ABU Edition</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom Styles */
+        body {
+            font-family: 'Inter', sans-serif;
+            /* Kahoot-like dark gradient background */
+            background-image: linear-gradient(to br, #4A00E0, #8E2DE2);
+        }
+        .game-title {
+            font-weight: 800; /* Extra bold */
+        }
+        .card {
+            perspective: 1000px;
+            cursor: pointer;
+        }
+        .card-inner {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            text-align: center;
+            transition: transform 0.6s;
+            transform-style: preserve-3d;
+        }
+        .card.flipped .card-inner {
+            transform: rotateY(180deg);
+        }
+        .card-front, .card-back {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            -webkit-backface-visibility: hidden;
+            backface-visibility: hidden;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            border-radius: 0.75rem; /* Slightly more rounded like Kahoot cards: rounded-xl */
+        }
+        .card-front {
+            background-color: #00A2FF; /* Kahoot Accent Blue */
+            color: white;
+        }
+        .card-back {
+            background-color: #64748b; /* Tailwind: bg-slate-500 - Neutral color for content */
+            color: white;
+            transform: rotateY(180deg);
+        }
+        .rules-tooltip, .definition-tooltip {
+            min-width: 280px;
+        }
+        .definition-tooltip {
+            bottom: calc(100% + 8px); /* Increased spacing */
+            left: 50%;
+            transform: translateX(-50%);
+            min-width: 180px;
+            max-width: 280px; /* Allow wider tooltips */
+            z-index: 30;
+            padding: 0.75rem; /* p-3 */
+            border-radius: 0.5rem; /* rounded-lg */
+        }
+        .fade-in-out {
+            animation: fadeInOut 3s ease-in-out;
+        }
+        @keyframes fadeInOut {
+            0%, 100% { opacity: 0; transform: translateY(-20px); }
+            10%, 90% { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Styling for term text on card to enable hyphenation */
+        .term-text-hyphenate {
+            hyphens: auto;
+            -webkit-hyphens: auto; /* For older WebKit browsers */
+            word-break: break-word; /* Fallback for better text wrapping */
+            text-align: center;
+            line-height: 1.3; /* Adjust line height for multi-line terms */
+        }
+
+        /* Kahoot-like button base style */
+        .kahoot-button {
+            color: white;
+            font-weight: 700; /* bold */
+            padding-top: 0.875rem; /* py-3.5 */
+            padding-bottom: 0.875rem;
+            padding-left: 1.5rem; /* px-6 */
+            padding-right: 1.5rem;
+            border-radius: 0.375rem; /* rounded-md, Kahoot buttons are often less rounded */
+            text-lg: ;
+            transition: all 0.15s ease-in-out;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); /* shadow-md */
+        }
+        .kahoot-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); /* shadow-lg */
+        }
+        .kahoot-button:focus {
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.5); /* Ring-like effect with white */
+        }
+
+        .kahoot-button-green { background-color: #26890C; /* Darker Green */ }
+        .kahoot-button-green:hover { background-color: #31AF0F; }
+        .kahoot-button-blue { background-color: #1368CE; }
+        .kahoot-button-blue:hover { background-color: #1881FF; }
+        .kahoot-button-yellow { background-color: #D89E00; }
+        .kahoot-button-yellow:hover { background-color: #FFB81C; }
+        .kahoot-button-red { background-color: #C92828; }
+        .kahoot-button-red:hover { background-color: #E53E3E; }
+        .kahoot-button-purple { background-color: #6A1B9A; }
+        .kahoot-button-purple:hover { background-color: #8E2DE2; }
+        .kahoot-button-slate { background-color: #4A5568; } /* For back button */
+        .kahoot-button-slate:hover { background-color: #718096; }
+
+
+        /* Custom select styling to look more Kahoot-like */
+        select.kahoot-select {
+            background-color: white;
+            border: 2px solid #CBD5E0; /* border-slate-300 */
+            border-radius: 0.375rem; /* rounded-md */
+            padding: 0.75rem 1rem; /* p-3 */
+            color: #2D3748; /* text-slate-800 */
+            appearance: none; /* Remove default arrow */
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='%234A5568'%3E%3Cpath fill-rule='evenodd' d='M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z' clip-rule='evenodd'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 0.75rem center;
+            background-size: 1.5em 1.5em;
+        }
+        select.kahoot-select:focus {
+            border-color: #4A00E0; /* Kahoot Purple */
+            box-shadow: 0 0 0 3px rgba(74, 0, 224, 0.3);
+            outline: none;
+        }
+
+    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&display=swap" rel="stylesheet">
+</head>
+<body class="text-slate-800 flex flex-col items-center justify-center min-h-screen p-4">
+
+    <div id="game-container" class="bg-white p-8 sm:p-10 md:p-12 rounded-2xl shadow-2xl w-full max-w-xl transition-all duration-500">
+
+        <div id="start-screen">
+            <div class="mx-auto mb-6 h-24 w-24 flex items-center justify-center rounded-full bg-gradient-to-br from-purple-600 to-indigo-600 shadow-lg">
+                <span class="text-5xl text-white">🧠</span> </div>
+            <h1 class="game-title text-4xl sm:text-5xl font-extrabold text-center mb-2 text-purple-700">Imposter</h1>
+            <p class="text-center text-slate-500 mb-8 text-2xl font-medium">ABU Edition</p>
+
+            <div class="mb-4">
+                <label for="semesterSelect" class="block text-sm font-medium text-slate-700 mb-1">Semester auswählen:</label>
+                <select id="semesterSelect" class="kahoot-select w-full text-lg">
+                    </select>
+            </div>
+
+            <div id="thema-select-container" class="mb-6 hidden"> <label for="themaSelect" class="block text-sm font-medium text-slate-700 mb-1">Thema auswählen:</label>
+                <select id="themaSelect" class="kahoot-select w-full text-lg">
+                    </select>
+            </div>
+
+            <button id="startGameBtn" class="kahoot-button kahoot-button-green w-full text-xl">Spiel Starten</button>
+        </div>
+
+        <div id="player-setup-screen" class="hidden">
+            <h2 class="text-3xl sm:text-4xl font-bold mb-8 text-center text-purple-700">Spieler einrichten</h2>
+            <div class="mb-6">
+                <label for="playerCount" class="block text-sm font-medium text-slate-700 mb-1">Anzahl Spieler:</label>
+                <select id="playerCount" class="kahoot-select w-full text-lg">
+                    </select>
+            </div>
+            <div id="playerNameInputs" class="mb-6 space-y-4">
+                </div>
+            <div class="flex space-x-3">
+                <button id="backToStartBtn" class="kahoot-button kahoot-button-slate w-1/3 text-lg">Zurück</button>
+                <button id="submitPlayersBtn" class="kahoot-button kahoot-button-green w-2/3 text-lg">Spiel konfigurieren!</button>
+            </div>
+        </div>
+
+        <div id="role-reveal-screen" class="hidden">
+            <h2 class="text-3xl sm:text-4xl font-bold mb-4 text-center text-purple-700">Rollen aufdecken</h2>
+            <p class="text-base text-slate-600 mb-8 text-center">Klicke auf deinen Namen, um deine Rolle zu sehen. Merke sie dir gut und gib das Gerät dann weiter.</p>
+            <div id="playerCardsContainer" class="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-8">
+                </div>
+            <button id="proceedToGameBtn" class="kahoot-button kahoot-button-green w-full text-xl hidden">Alle Rollen gesehen? Spiel starten!</button>
+        </div>
+
+        <div id="game-screen" class="hidden">
+            <h2 class="text-3xl sm:text-4xl font-bold mb-4 text-center text-purple-700">Das Spiel läuft!</h2>
+            <p id="startingPlayerText" class="text-xl text-center font-semibold text-slate-700 mb-8"></p>
+            
+            <div class="rules-container relative group mb-8 text-center">
+                <button class="bg-purple-100 text-purple-700 px-6 py-3 rounded-lg hover:bg-purple-200 text-base font-medium transition duration-150 focus:outline-none focus:ring-2 focus:ring-purple-400 shadow-sm">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline-block mr-2" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
+                    </svg>
+                    Spielregeln
+                </button>
+                <div class="rules-tooltip absolute hidden group-hover:block bg-slate-800 text-white text-sm rounded-lg p-4 shadow-xl z-20 mt-2 left-1/2 transform -translate-x-1/2 text-left">
+                    <h4 class="font-bold text-base mb-2">Kurzregeln:</h4>
+                    <ul class="list-disc list-inside space-y-1">
+                        <li>Ein Spieler ist der Imposter (kennt den Begriff nicht).</li>
+                        <li>Die anderen kennen den geheimen Fachbegriff.</li>
+                        <li>Reihum einen Hinweis geben (1 Wort/kurze Phrase).</li>
+                        <li>Begriff NICHT direkt nennen!</li>
+                        <li>Crew gewinnt: Imposter wird entlarvt.</li>
+                        <li>Imposter gewinnt: Begriff wird erraten ODER ein Unschuldiger fälschlich beschuldigt.</li>
+                        <li>Nach jeder Runde: Diskutieren & abstimmen.</li>
+                    </ul>
+                </div>
+            </div>
+
+            <p class="text-slate-600 text-base mb-6 text-center">Viel Spaß beim Diskutieren, Kombinieren und Entlarven!</p>
+            
+            <button id="revealBtn" class="kahoot-button kahoot-button-yellow w-full text-xl mb-4">Auflösen</button>
+            
+            <div id="reveal-info" class="hidden my-6 p-6 bg-indigo-50 rounded-xl shadow text-center">
+                <h3 class="text-2xl font-semibold text-indigo-700 mb-3">Auflösung</h3>
+                <p id="imposterWasText" class="text-xl text-slate-700"></p>
+                <p id="wordWasText" class="text-xl text-slate-700 mt-2"></p>
+            </div>
+            
+            <button id="replaySamePlayersBtn" class="kahoot-button kahoot-button-blue w-full text-xl mb-4 hidden">Nochmal Spielen (Gleiche Spieler)</button>
+
+            <button id="newGameBtn" class="kahoot-button kahoot-button-purple w-full text-xl">Neues Spiel</button>
+        </div>
+
+        <div id="message-box" class="fixed top-6 right-6 bg-red-600 text-white p-4 rounded-lg shadow-xl hidden z-50 max-w-md text-base">
+            <p id="message-text"></p>
+        </div>
+    </div>
+
+    <script>
+        // DOM Elements
+        const screens = {
+            start: document.getElementById('start-screen'),
+            playerSetup: document.getElementById('player-setup-screen'),
+            roleReveal: document.getElementById('role-reveal-screen'),
+            game: document.getElementById('game-screen'),
+        };
+        const startGameBtn = document.getElementById('startGameBtn');
+        const semesterSelect = document.getElementById('semesterSelect');
+        const themaSelectContainer = document.getElementById('thema-select-container');
+        const themaSelect = document.getElementById('themaSelect');
+        const playerCountSelect = document.getElementById('playerCount');
+        const playerNameInputsContainer = document.getElementById('playerNameInputs');
+        const submitPlayersBtn = document.getElementById('submitPlayersBtn');
+        const backToStartBtn = document.getElementById('backToStartBtn');
+        const playerCardsContainer = document.getElementById('playerCardsContainer');
+        const proceedToGameBtn = document.getElementById('proceedToGameBtn');
+        const startingPlayerText = document.getElementById('startingPlayerText');
+        const newGameBtn = document.getElementById('newGameBtn');
+        const messageBox = document.getElementById('message-box');
+        const messageText = document.getElementById('message-text');
+        const revealBtn = document.getElementById('revealBtn');
+        const revealInfoDiv = document.getElementById('reveal-info');
+        const imposterWasText = document.getElementById('imposterWasText');
+        const wordWasText = document.getElementById('wordWasText');
+        const replaySamePlayersBtn = document.getElementById('replaySamePlayersBtn'); // New button
+
+        // Game State
+        let players = []; // Stores objects like { name: "Spieler1", isImposter: false, roleRevealed: false }
+        let playerNamesForReplay = []; // Stores just the names for replay
+        let currentWord = { term: '', definition: '' };
+        let imposterIndex = -1;
+        let rolesRevealedCount = 0;
+        let currentTermsList = [];
+
+        // Begriff-Datenbank für ABU nach Semestern und Themen
+        const termsBySemesterABU = {
+            "Semester 1": {
+                "1.2 Einführung ABU": [
+                    { term: "Powerkit G'n'G", definition: "Lehrmittel oder Konzept für 'Gesundheit und Leistungsfähigkeit'." }
+                ],
+                "1.3 Rechte und Pflichten": [
+                    { term: "Werte und Normen", definition: "Grundlegende Überzeugungen und Verhaltensregeln einer Gesellschaft." },
+                    { term: "Recht", definition: "System von Regeln, das das Zusammenleben ordnet und erzwingbar ist." },
+                    { term: "Ethik", definition: "Philosophische Disziplin, die moralisches Handeln untersucht." },
+                    { term: "Moral", definition: "Gesamtheit der sittlichen Grundsätze und Werte einer Person oder Gruppe." },
+                    { term: "Sitte", definition: "Traditionelle, gewohnheitsmäßige Verhaltensweise in einer Gemeinschaft." },
+                    { term: "Grundrechte", definition: "Fundamentale Rechte, die jedem Menschen zustehen (z.B. Meinungsfreiheit)." },
+                    { term: "Bundesverfassung", definition: "Grundgesetz eines Bundesstaates (z.B. der Schweiz)." },
+                    { term: "ZGB", definition: "Zivilgesetzbuch; regelt privatrechtliche Beziehungen von Personen." },
+                    { term: "OR", definition: "Obligationenrecht; Teil des ZGB, regelt Schuldverhältnisse (Verträge)." },
+                    { term: "Lehrvertrag", definition: "Vertrag zwischen Lernenden und Lehrbetrieb über die Berufsausbildung." }
+                ],
+                "1.5 Kultur": [
+                    { term: "Kultur", definition: "Gesamtheit der geistigen, künstlerischen, gestaltenden Leistungen einer Gemeinschaft." },
+                    { term: "Angewandte Kunst", definition: "Kunst, die funktionale Gegenstände gestaltet (Design)." },
+                    { term: "Literatur", definition: "Gesamtheit des geschriebenen Schrifttums." },
+                    { term: "Musik", definition: "Kunstgattung, die Töne in einer zeitlichen Ordnung gestaltet." }
+                ]
+            },
+            "Semester 2": {
+                "2.2 Kauf und Konsum": [
+                    { term: "Budget", definition: "Plan über Einnahmen und Ausgaben für einen bestimmten Zeitraum." },
+                    { term: "Schuldenfallen", definition: "Situationen, die leicht zu Überschuldung führen können (z.B. Konsumkredite)." },
+                    { term: "Lohnausweis", definition: "Dokument, das Lohn und Abzüge eines Arbeitnehmers bescheinigt." },
+                    { term: "Sozialabzüge", definition: "Gesetzliche Abzüge vom Lohn für Sozialversicherungen (AHV, IV, EO, ALV)." },
+                    { term: "Solidaritätsprinzip", definition: "Prinzip, bei dem Stärkere Schwächere unterstützen (Basis vieler Versicherungen)." },
+                    { term: "Bedürfnisse (Maslow)", definition: "Hierarchie menschlicher Bedürfnisse nach Abraham Maslow." },
+                    { term: "Kaufvertrag", definition: "Vertrag über den Austausch von Ware gegen Geld." },
+                    { term: "Besitz", definition: "Tatsächliche Herrschaft über eine Sache." },
+                    { term: "Eigentum", definition: "Rechtliche Herrschaft über eine Sache." },
+                    { term: "Leasing", definition: "Mietähnlicher Vertrag über die Nutzung einer Sache gegen Ratenzahlung." }
+                ],
+                "2.4 Familie und Partnerschaft": [
+                    { term: "Rechtsfähigkeit", definition: "Fähigkeit, Träger von Rechten und Pflichten zu sein (ab Geburt)." },
+                    { term: "Urteilsfähigkeit", definition: "Fähigkeit, vernunftgemäss zu handeln." },
+                    { term: "Handlungsfähigkeit", definition: "Fähigkeit, durch eigene Handlungen Rechte und Pflichten zu begründen." },
+                    { term: "Konkubinat", definition: "Eheähnliche Lebensgemeinschaft ohne Trauschein." },
+                    { term: "Ehe", definition: "Gesetzlich anerkannte Lebensgemeinschaft zweier Personen." },
+                    { term: "Adoption", definition: "Annahme eines Kindes an Kindes statt." },
+                    { term: "Vorsorgeauftrag", definition: "Dokument, das regelt, wer im Fall der eigenen Urteilsunfähigkeit entscheidet." }
+                ]
+            },
+            "Semester 3": {
+                "3.2 Politik": [
+                    { term: "Demokratie", definition: "Staatsform, in der die Macht vom Volk ausgeht." },
+                    { term: "Diktatur", definition: "Staatsform mit uneingeschränkter Macht eines Einzelnen oder einer Gruppe." },
+                    { term: "Menschenrechte", definition: "Universelle Rechte, die jedem Menschen zustehen." },
+                    { term: "Initiative", definition: "Politisches Recht des Volkes, eine Verfassungsänderung anzuregen." },
+                    { term: "Referendum", definition: "Volksabstimmung über ein vom Parlament beschlossenes Gesetz." },
+                    { term: "Gewaltenteilung", definition: "Aufteilung der Staatsmacht in Legislative, Exekutive und Judikative." },
+                    { term: "Pluralismus", definition: "Vielfalt von Meinungen, Interessen und Organisationen in einer Gesellschaft." }
+                ],
+                "3.3 Ökologie": [
+                    { term: "Nachhaltigkeit", definition: "Prinzip, Ressourcen so zu nutzen, dass sie künftigen Generationen erhalten bleiben." },
+                    { term: "Ökologischer Fussabdruck", definition: "Mass für den Ressourcenverbrauch einer Person oder eines Landes." },
+                    { term: "Treibhauseffekt", definition: "Erwärmung der Erdatmosphäre durch Treibhausgase." },
+                    { term: "Klimawandel", definition: "Langfristige Veränderung des globalen oder regionalen Klimas." },
+                    { term: "Erneuerbare Energien", definition: "Energiequellen, die unbegrenzt verfügbar sind oder sich schnell erneuern (Sonne, Wind)." }
+                ]
+            },
+            "Semester 4": {
+                 "4.1 Literaturprojekt": [
+                    { term: "Analyse", definition: "Systematische Untersuchung eines Textes oder Sachverhalts." },
+                    { term: "Interpretation", definition: "Deutung und Auslegung eines Textes oder Kunstwerks." },
+                ],
+                "4.2 Berufliche Zukunft": [
+                    { term: "Identität", definition: "Selbstverständnis einer Person; wer sie ist und sein will." },
+                    { term: "Sozialisation", definition: "Prozess der Eingliederung eines Individuums in eine Gesellschaft." },
+                    { term: "Einzelarbeitsvertrag", definition: "Vertrag zwischen Arbeitgeber und einzelnem Arbeitnehmer." },
+                    { term: "Gesamtarbeitsvertrag", definition: "Vertrag zwischen Arbeitgeberverbänden und Gewerkschaften über Arbeitsbedingungen." },
+                    { term: "Bewerbungsschreiben", definition: "Schriftliche Vorstellung für eine Arbeitsstelle." }
+                ],
+                "4.3 Medienprojekt mit Interview zum Themenbereich der Migration, Integration": [
+                    { term: "Migration", definition: "Wanderung von Menschen über Staatsgrenzen hinweg." },
+                    { term: "Push-Faktoren", definition: "Gründe, die Menschen veranlassen, ihre Heimat zu verlassen (z.B. Krieg, Armut)." },
+                    { term: "Pull-Faktoren", definition: "Gründe, die Menschen in ein bestimmtes Land ziehen (z.B. Arbeit, Sicherheit)." },
+                    { term: "Rassismus", definition: "Diskriminierung aufgrund von Hautfarbe, Herkunft oder Ethnie." },
+                    { term: "Integration", definition: "Eingliederung von Zugewanderten in eine Gesellschaft." }
+                ]
+            },
+            "Semester 5": {
+                "5.1 Wir als Teil der Volkswirtschaft": [
+                    { term: "Wohlstand", definition: "Materieller Lebensstandard einer Person oder Gesellschaft." },
+                    { term: "Wohlfahrt", definition: "Lebensqualität und Wohlergehen einer Person oder Gesellschaft." },
+                    { term: "Wirtschaftskreislauf", definition: "Modellhafte Darstellung der Güter- und Geldströme in einer Volkswirtschaft." },
+                    { term: "Wirtschaftssektoren", definition: "Einteilung der Wirtschaft in Primär- (Urproduktion), Sekundär- (Industrie) und Tertiärsektor (Dienstleistungen)." },
+                    { term: "Angebot und Nachfrage", definition: "Grundprinzipien der Preisbildung auf einem Markt." },
+                    { term: "Bruttoinlandprodukt (BIP)", definition: "Gesamtwert aller Güter und Dienstleistungen, die in einem Land innerhalb eines Jahres produziert werden." },
+                    { term: "Konjunkturverlauf", definition: "Schwankungen der wirtschaftlichen Aktivität (Aufschwung, Boom, Rezession, Depression)." },
+                    { term: "Arbeitslosigkeit", definition: "Zustand, in dem erwerbsfähige Personen keine bezahlte Arbeit finden." }
+                ]
+            },
+            "Semester 6": {
+                "6.1 Auf in die Selbständigkeit (I): Steuern zahlen": [
+                    { term: "Direkte Steuern", definition: "Steuern, die direkt vom Einkommen oder Vermögen erhoben werden (z.B. Einkommenssteuer)." },
+                    { term: "Indirekte Steuern", definition: "Steuern, die auf den Verbrauch von Gütern und Dienstleistungen erhoben werden (z.B. Mehrwertsteuer)." },
+                    { term: "Mehrwertsteuer (MwSt.)", definition: "Verbrauchssteuer auf den Verkauf von Waren und Dienstleistungen." },
+                    { term: "Steuererklärung", definition: "Dokument, mit dem Steuerpflichtige ihr Einkommen und Vermögen deklarieren." },
+                    { term: "Verrechnungssteuer", definition: "Steuer auf Kapitalerträgen (z.B. Zinsen), die zurückgefordert werden kann." },
+                    { term: "Steuerprogression", definition: "Anstieg des Steuersatzes mit zunehmendem Einkommen oder Vermögen." }
+                ],
+                "6.2 Auf in die Selbstständigkeit (II): mieten, sparen, versichern": [
+                    { term: "Altersvorsorge", definition: "Massnahmen zur finanziellen Absicherung im Alter." },
+                    { term: "Pensionskasse", definition: "Einrichtung der beruflichen Altersvorsorge (2. Säule in der Schweiz)." },
+                    { term: "Mietvertrag", definition: "Vertrag über die Überlassung einer Mietsache gegen Entgelt." }
+                ]
+            }
+        };
+
+        // Utility Functions
+        function showScreen(screenName) {
+            Object.values(screens).forEach(screen => screen.classList.add('hidden'));
+            if (screens[screenName]) {
+                screens[screenName].classList.remove('hidden');
+            }
+            if (screenName === 'game') {
+                revealInfoDiv.classList.add('hidden');
+                revealBtn.classList.remove('hidden'); // Show reveal button when game screen loads
+                replaySamePlayersBtn.classList.add('hidden'); // Hide replay button initially
+            }
+        }
+
+        function showMessage(message, duration = 3000) {
+            messageText.textContent = message;
+            messageBox.classList.remove('hidden');
+            messageBox.classList.add('fade-in-out');
+            setTimeout(() => {
+                messageBox.classList.add('hidden');
+                messageBox.classList.remove('fade-in-out');
+            }, duration);
+        }
+
+        function populateSemesterSelect() {
+            semesterSelect.innerHTML = '';
+            const defaultOption = document.createElement('option');
+            defaultOption.value = "Zufall";
+            defaultOption.textContent = "Zufall (Alle Semester)";
+            semesterSelect.appendChild(defaultOption);
+
+            Object.keys(termsBySemesterABU).forEach(semesterKey => {
+                const option = document.createElement('option');
+                option.value = semesterKey;
+                option.textContent = semesterKey;
+                semesterSelect.appendChild(option);
+            });
+            populateThemaSelect(semesterSelect.value);
+        }
+
+        function populateThemaSelect(selectedSemester) {
+            themaSelect.innerHTML = '';
+            if (selectedSemester === "Zufall" || !termsBySemesterABU[selectedSemester]) {
+                themaSelectContainer.classList.add('hidden');
+                return;
+            }
+
+            themaSelectContainer.classList.remove('hidden');
+
+            const allThemenOption = document.createElement('option');
+            allThemenOption.value = "Alle_Themen";
+            allThemenOption.textContent = "Alle Themen dieses Semesters";
+            themaSelect.appendChild(allThemenOption);
+
+            const semesterData = termsBySemesterABU[selectedSemester];
+            Object.keys(semesterData).forEach(themaKey => {
+                const option = document.createElement('option');
+                option.value = themaKey;
+                option.textContent = themaKey;
+                themaSelect.appendChild(option);
+            });
+        }
+
+
+        // Event Listeners
+        semesterSelect.addEventListener('change', (event) => {
+            populateThemaSelect(event.target.value);
+        });
+
+        startGameBtn.addEventListener('click', () => {
+            const selectedSemesterValue = semesterSelect.value;
+            const selectedThemaValue = themaSelect.value;
+            currentTermsList = [];
+
+            if (selectedSemesterValue === "Zufall") {
+                Object.values(termsBySemesterABU).forEach(semesterThemen => {
+                    Object.values(semesterThemen).forEach(themaTerms => {
+                        currentTermsList.push(...themaTerms);
+                    });
+                });
+            } else if (termsBySemesterABU[selectedSemesterValue]) {
+                const semesterThemen = termsBySemesterABU[selectedSemesterValue];
+                if (!themaSelectContainer.classList.contains('hidden') && selectedThemaValue === "Alle_Themen") {
+                     Object.values(semesterThemen).forEach(themaTerms => {
+                        currentTermsList.push(...themaTerms);
+                    });
+                } else if (!themaSelectContainer.classList.contains('hidden') && semesterThemen[selectedThemaValue]) {
+                    currentTermsList = [...semesterThemen[selectedThemaValue]];
+                } else {
+                     Object.values(semesterThemen).forEach(themaTerms => {
+                        currentTermsList.push(...themaTerms);
+                    });
+                }
+            }
+
+            if (currentTermsList.length === 0) {
+                showMessage("Keine Begriffe für die Auswahl gefunden. Bitte die Begriffsliste im Code prüfen oder eine andere Auswahl treffen.");
+                return;
+            }
+            playerNamesForReplay = []; // Clear player names for a completely new game
+            showScreen('playerSetup');
+            populatePlayerCountSelect();
+            updatePlayerNameInputs(); 
+        });
+
+        backToStartBtn.addEventListener('click', () => {
+            showScreen('start');
+            themaSelectContainer.classList.add('hidden');
+            themaSelect.innerHTML = '';
+        });
+
+        playerCountSelect.addEventListener('change', updatePlayerNameInputs);
+
+        submitPlayersBtn.addEventListener('click', () => {
+            const numPlayers = parseInt(playerCountSelect.value);
+            const names = [];
+            let allNamesFilled = true;
+            for (let i = 0; i < numPlayers; i++) {
+                const input = document.getElementById(`playerName${i}`);
+                if (input.value.trim() === '') {
+                    allNamesFilled = false;
+                    break;
+                }
+                names.push(input.value.trim());
+            }
+
+            if (!allNamesFilled) {
+                showMessage("Bitte gib allen Spielern einen Namen.");
+                return;
+            }
+            if (new Set(names).size !== names.length) {
+                 showMessage("Spielernamen müssen eindeutig sein.");
+                 return;
+            }
+            playerNamesForReplay = [...names]; // Store names for potential replay
+            initializeGameWithCurrentPlayers(); // Use current players for the first round
+            showScreen('roleReveal');
+            displayPlayerCards();
+        });
+        
+        replaySamePlayersBtn.addEventListener('click', () => {
+            if (playerNamesForReplay.length > 0) {
+                // Hide reveal info and replay button, show reveal button again for next round
+                revealInfoDiv.classList.add('hidden');
+                replaySamePlayersBtn.classList.add('hidden');
+                revealBtn.classList.remove('hidden');
+
+                initializeGameWithCurrentPlayers(); // Re-initialize with same players
+                showScreen('roleReveal');
+                displayPlayerCards();
+            } else {
+                // Should not happen if button is only shown after a game
+                showMessage("Fehler: Keine Spielerdaten für 'Nochmal spielen' gefunden.");
+                resetGame();
+                showScreen('start');
+            }
+        });
+
+
+        proceedToGameBtn.addEventListener('click', () => {
+            showScreen('game');
+            determineStartingPlayer();
+        });
+
+        newGameBtn.addEventListener('click', () => {
+            resetGame();
+            showScreen('start');
+        });
+
+        revealBtn.addEventListener('click', () => {
+            if (players.length > 0 && imposterIndex !== -1 && currentWord.term !== '') {
+                const imposterPlayer = players[imposterIndex];
+                imposterWasText.textContent = `Der Imposter war: ${imposterPlayer.name}`;
+                wordWasText.textContent = `Der gesuchte Begriff war: ${currentWord.term}`;
+                revealInfoDiv.classList.remove('hidden');
+                revealBtn.classList.add('hidden');
+                replaySamePlayersBtn.classList.remove('hidden'); // Show replay button
+            } else {
+                showMessage("Das Spiel muss zuerst vollständig konfiguriert sein, um aufzulösen.");
+            }
+        });
+
+        // Game Logic Functions
+        function populatePlayerCountSelect() {
+            playerCountSelect.innerHTML = ''; 
+            for (let i = 2; i <= 8; i++) {
+                const option = document.createElement('option');
+                option.value = i;
+                option.textContent = `${i} Spieler`;
+                playerCountSelect.appendChild(option);
+            }
+            // Set default based on existing players if replaying, else default to 4
+            playerCountSelect.value = Math.min(8, Math.max(2, playerNamesForReplay.length > 0 ? playerNamesForReplay.length : 4)).toString();
+        }
+
+        function updatePlayerNameInputs() {
+            const numPlayers = parseInt(playerCountSelect.value);
+            playerNameInputsContainer.innerHTML = ''; 
+            for (let i = 0; i < numPlayers; i++) {
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.id = `playerName${i}`;
+                // Pre-fill names if they exist from a previous round (for setup screen, not for replay logic)
+                input.value = playerNamesForReplay[i] || '';
+                input.placeholder = `Name Spieler ${i + 1}`;
+                input.className = 'w-full p-3 border border-slate-300 rounded-lg shadow-sm focus:ring-purple-500 focus:border-purple-500 text-lg';
+                playerNameInputsContainer.appendChild(input);
+            }
+        }
+        
+        // Initializes a new round with the currently stored player names
+        function initializeGameWithCurrentPlayers() {
+            players = []; // Reset players array for new roles
+            if (currentTermsList.length === 0) {
+                // Fallback: if currentTermsList is somehow empty, repopulate it based on current dropdowns
+                // This is a safeguard, normally currentTermsList should be set from startGameBtn
+                const selectedSemesterValue = semesterSelect.value;
+                const selectedThemaValue = themaSelect.value;
+                if (selectedSemesterValue === "Zufall") {
+                    Object.values(termsBySemesterABU).forEach(semesterThemen => {
+                        Object.values(semesterThemen).forEach(themaTerms => currentTermsList.push(...themaTerms));
+                    });
+                } else if (termsBySemesterABU[selectedSemesterValue]) {
+                    const semesterThemen = termsBySemesterABU[selectedSemesterValue];
+                    if (!themaSelectContainer.classList.contains('hidden') && selectedThemaValue === "Alle_Themen") {
+                        Object.values(semesterThemen).forEach(themaTerms => currentTermsList.push(...themaTerms));
+                    } else if (!themaSelectContainer.classList.contains('hidden') && semesterThemen[selectedThemaValue]) {
+                        currentTermsList = [...semesterThemen[selectedThemaValue]];
+                    } else {
+                        Object.values(semesterThemen).forEach(themaTerms => currentTermsList.push(...themaTerms));
+                    }
+                }
+                if (currentTermsList.length === 0) {
+                     showMessage("Fehler: Keine Begriffe für die Auswahl gefunden. Bitte die Begriffsliste im Code prüfen oder eine andere Auswahl treffen.");
+                     currentWord = { term: "FEHLER", definition: "Keine Begriffe geladen." };
+                     // Potentially go back to start screen or handle error more gracefully
+                     resetGame();
+                     showScreen('start');
+                     return; // Stop initialization
+                }
+            }
+            
+            currentWord = currentTermsList[Math.floor(Math.random() * currentTermsList.length)];
+            imposterIndex = Math.floor(Math.random() * playerNamesForReplay.length);
+            rolesRevealedCount = 0;
+            
+            proceedToGameBtn.classList.add('hidden'); // Hide until all roles are seen
+            // Ensure reveal info and replay button are hidden for the new round setup
+            revealInfoDiv.classList.add('hidden');
+            replaySamePlayersBtn.classList.add('hidden');
+            revealBtn.classList.remove('hidden'); // Show the reveal button for the upcoming game round
+
+
+            playerNamesForReplay.forEach((name, index) => {
+                players.push({
+                    name: name,
+                    isImposter: index === imposterIndex,
+                    roleRevealed: false // Reset for the new round
+                });
+            });
+        }
+
+
+        function displayPlayerCards() {
+            playerCardsContainer.innerHTML = '';
+            players.forEach((player, index) => {
+                const cardContainer = document.createElement('div');
+                cardContainer.className = 'card h-40 sm:h-44';
+
+                const cardInner = document.createElement('div');
+                cardInner.className = 'card-inner';
+
+                const cardFront = document.createElement('div');
+                cardFront.className = 'card-front flex flex-col justify-center items-center p-2';
+                cardFront.innerHTML = `<span class="font-semibold text-lg">${player.name}</span><span class="text-xs mt-1">(Klicken zum Aufdecken)</span>`;
+
+                const cardBack = document.createElement('div');
+                cardBack.className = 'card-back p-3 break-words flex flex-col justify-center items-center'; 
+                
+                if (player.isImposter) {
+                    cardBack.innerHTML = `<span class="font-bold text-xl xl:text-2xl">IMPOSTER</span><p class="text-xs mt-1">Du kennst den Begriff nicht!</p>`;
+                } else {
+                    const termContainer = document.createElement('div');
+                    termContainer.className = 'relative group text-center w-full px-1 flex flex-col items-center justify-center h-full';
+
+                    const termText = document.createElement('span');
+                    termText.className = 'font-semibold term-text-hyphenate'; 
+                    termText.textContent = currentWord.term;
+
+                    if (currentWord.term.length > 30) {
+                        termText.classList.add('text-sm');
+                    } else if (currentWord.term.length > 20) {
+                        termText.classList.add('text-base');
+                    } else if (currentWord.term.length > 12) {
+                        termText.classList.add('text-lg');
+                    } else {
+                        termText.classList.add('text-xl');
+                    }
+                    termContainer.appendChild(termText);
+
+                    const questionMarkContainer = document.createElement('div');
+                    questionMarkContainer.className = 'mt-1';
+
+                    const questionMark = document.createElement('span');
+                    questionMark.className = 'text-sm cursor-help opacity-80 hover:opacity-100';
+                    questionMark.textContent = '❓';
+                    questionMarkContainer.appendChild(questionMark);
+                    
+                    const definitionBox = document.createElement('div');
+                    definitionBox.className = 'definition-tooltip absolute hidden group-hover:block bg-slate-700 text-white text-xs rounded-lg p-3 shadow-xl whitespace-normal text-left';
+                    definitionBox.textContent = currentWord.definition;
+                    questionMarkContainer.appendChild(definitionBox);
+                    
+                    termContainer.appendChild(questionMarkContainer);
+                    cardBack.appendChild(termContainer);
+                }
+                
+                const understoodButton = document.createElement('button');
+                understoodButton.textContent = "Verstanden";
+                understoodButton.className = "absolute bottom-2 left-1/2 transform -translate-x-1/2 bg-white/20 hover:bg-white/40 text-white text-xs font-semibold py-1 px-3 rounded-md";
+                understoodButton.onclick = (e) => {
+                    e.stopPropagation(); 
+                    cardContainer.classList.remove('flipped'); 
+                    cardFront.innerHTML = `<span class="font-semibold text-lg">${player.name}</span><span class="text-sm text-green-200">✔️ Rolle gesehen</span>`;
+                    cardContainer.onclick = null; 
+                    player.roleRevealed = true;
+                    rolesRevealedCount++;
+                    if (rolesRevealedCount === players.length) {
+                        proceedToGameBtn.classList.remove('hidden');
+                    }
+                };
+                cardBack.appendChild(understoodButton);
+
+                cardInner.appendChild(cardFront);
+                cardInner.appendChild(cardBack);
+                cardContainer.appendChild(cardInner);
+
+                cardContainer.addEventListener('click', () => {
+                    if (!cardContainer.classList.contains('flipped') && !player.roleRevealed) {
+                        cardContainer.classList.add('flipped');
+                    }
+                });
+                playerCardsContainer.appendChild(cardContainer);
+            });
+        }
+
+        function determineStartingPlayer() {
+            let crewmates = players.filter(p => !p.isImposter);
+            if (crewmates.length === 0) { 
+                if (players.length > 0) { 
+                     const startingPlayer = players[Math.floor(Math.random() * players.length)];
+                     startingPlayerText.textContent = `${startingPlayer.name} beginnt mit dem ersten Hinweis! (Hinweis: Konnte keinen Crewmate finden)`;
+                } else {
+                    startingPlayerText.textContent = "Fehler: Keine Spieler zum Starten gefunden.";
+                }
+                return;
+            }
+            const startingPlayer = crewmates[Math.floor(Math.random() * crewmates.length)];
+            startingPlayerText.textContent = `${startingPlayer.name} beginnt mit dem ersten Hinweis!`;
+        }
+
+        function resetGame() {
+            players = [];
+            playerNamesForReplay = []; // Clear stored player names
+            currentWord = { term: '', definition: '' };
+            imposterIndex = -1;
+            rolesRevealedCount = 0;
+            currentTermsList = [];
+            playerNameInputsContainer.innerHTML = '';
+            playerCardsContainer.innerHTML = '';
+            proceedToGameBtn.classList.add('hidden');
+            semesterSelect.value = "Zufall"; 
+            themaSelectContainer.classList.add('hidden');
+            themaSelect.innerHTML = '';
+            
+            revealInfoDiv.classList.add('hidden');
+            revealBtn.classList.remove('hidden'); // Show reveal button for a new game
+            replaySamePlayersBtn.classList.add('hidden'); // Hide replay button
+            imposterWasText.textContent = ''; 
+            wordWasText.textContent = '';    
+        }
+
+        // Initial Setup
+        populateSemesterSelect();
+        showScreen('start');
+
+    </script>
+</body>
+</html>
